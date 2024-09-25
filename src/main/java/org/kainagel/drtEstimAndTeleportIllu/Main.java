@@ -1,10 +1,11 @@
-package playground.kairuns.selection;
+package org.kainagel.drtEstimAndTeleportIllu;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
 class Main{
+	private static int cnt = 0;
 	static class Person {
 		List<Plan> plans = new ArrayList<>();
 	}
@@ -48,6 +49,9 @@ class Main{
 				} else if ( time < maxTime-10 ){
 					Plan plan = generateNewPlanWithScore( rnd );
 					person.plans.add( plan );
+				} else if ( cnt==0 ){
+					cnt++;
+					System.out.println("---");
 				}
 			}
 
