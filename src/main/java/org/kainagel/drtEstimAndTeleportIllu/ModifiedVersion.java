@@ -19,12 +19,12 @@ public class ModifiedVersion {
         // mode choice probability
         double modeChoice = 0.1;
         // duplication of plans (due to time mutation and reroute)
-        double duplicate = 0.2;
+        double duplicate = 0;
 
         // uncertainty level of DRT plans
         double sigma = 0;
         // advantage of mean score drt plan
-        double delta = -0.1;
+        double delta = -0.001;
 
         // prepare initial population
         List<Main.Person> population = generateInitialPlans(populationSize);
