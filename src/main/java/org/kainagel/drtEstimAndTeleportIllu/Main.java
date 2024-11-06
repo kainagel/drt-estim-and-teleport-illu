@@ -4,53 +4,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import static org.kainagel.drtEstimAndTeleportIllu.Person.getBestPlan;
+import static org.kainagel.drtEstimAndTeleportIllu.Person.getWorstPlan;
+
+@Deprecated
+/**
+ * The modified version now provides more comprehensive setups. Please use RunSimulation to configure and run simulations.
+ */
 class Main {
     private static int cnt = 0;
-
-    static class Person {
-        List<Plan> plans = new ArrayList<>();
-        Plan selectedPlan = null;
-
-        void selectRandomPlan(Random rnd) {
-            if (!plans.isEmpty()) {
-                selectedPlan = plans.get(rnd.nextInt(plans.size()));
-            } else {
-                throw new RuntimeException("No plans in memory. Please create at least one plan");
-            }
-        }
-
-        void changeExpBeta(Random rnd) {
-            if (plans.isEmpty()) {
-                throw new RuntimeException("No plans in memory. Please create at least one plan");
-            }
-
-            // Randomly choose a plan
-            // (it can also be the currently selected plan based on the current implementation in MATSim)
-            Plan otherPlan = plans.get(rnd.nextInt(plans.size()));
-
-            // assume beta = 1
-            double beta = 1;
-            double probabilityToSwitch = Math.exp(otherPlan.score * beta) / (Math.exp(selectedPlan.score * beta) + Math.exp(otherPlan.score * beta));
-            if (rnd.nextDouble() < probabilityToSwitch) {
-                selectedPlan = otherPlan;
-            }
-        }
-
-        void selectBestPlan() {
-            if (plans.isEmpty()) {
-                throw new RuntimeException("No plans in memory. Please create at least one plan");
-            }
-            selectedPlan = getBestPlan(this);
-        }
-    }
-
-    static class Plan {
-        enum Type {drt, other}
-
-        ;
-        Type type;
-        double score;
-    }
 
     public static void main(String[] args) {
         Random rnd = new Random();
@@ -128,27 +90,4 @@ class Main {
         return plan;
     }
 
-    static Plan getWorstPlan(Person person) {
-        double minScore = Double.POSITIVE_INFINITY;
-        Plan tmp = null;
-        for (Plan plan : person.plans) {
-            if (plan.score < minScore) {
-                minScore = plan.score;
-                tmp = plan;
-            }
-        }
-        return tmp;
-    }
-
-    static Plan getBestPlan(Person person) {
-        double maxScore = Double.NEGATIVE_INFINITY;
-        Plan tmp = null;
-        for (Plan plan : person.plans) {
-            if (plan.score > maxScore) {
-                maxScore = plan.score;
-                tmp = plan;
-            }
-        }
-        return tmp;
-    }
 }

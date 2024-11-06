@@ -1,24 +1,27 @@
 package org.kainagel.drtEstimAndTeleportIllu;
 
 import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
+import org.apache.commons.csv.CSVRecord;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.stream.Collectors;
 
-import static org.kainagel.drtEstimAndTeleportIllu.Main.getWorstPlan;
+import static org.kainagel.drtEstimAndTeleportIllu.Person.getWorstPlan;
 
-public class ModifiedVersion {
+public class RunSimulation {
 
     public static void main(String[] args) throws IOException {
         // some parameters
         Random random = new Random(1);
         int populationSize = 10000;
         int maxIterations = 500;
-        double proportionToSwitchOffInnovation = 0.9;
+        double proportionToSwitchOffInnovation = 0.8;
         int memorySize = 5;
 
         // mode choice probability
@@ -28,18 +31,25 @@ public class ModifiedVersion {
 
         // preference std (= 0 if everyone is the same)
         double preferenceStd = 0;
+//        String preferenceDataSource = "/Users/luchengqi/Desktop/deltas.tsv";
 
         // uncertainty level of DRT plans
-        double sigma = 3;
+        double sigma = 0;
+
+        // output folder name
+//        String runSetup = "base";
+        String runSetup = "with-duplication";
+
         // advantage of mean score drt plan
 //        double[] deltas = new double[]{-0.0001};
         double[] deltas = new double[]{-10, -5, -2, -1, -0.5, -0.2, -0.1, -0.0001, 0, 0.0001, 0.1, 0.2, 0.5, 1, 2, 5, 10};
 
         boolean printResults = false;
 
+
         // write down a tsv file for output
-        String outputFolder = "/Users/luchengqi/Documents/TU-Berlin/Projects/DRT-estimate-and-teleport/mode-choice-study/with-preference-with-duplicate/" +
-                "sigma_" + sigma + "-duplicate_" + duplicate;
+        String outputFolder = "/Users/luchengqi/Documents/TU-Berlin/Projects/DRT-estimate-and-teleport/mode-choice-study/" + runSetup +
+                "/sigma_" + sigma;
         if (!Files.exists(Path.of(outputFolder))) {
             Files.createDirectories(Path.of(outputFolder));
             Files.createDirectories(Path.of(outputFolder + "/intermediate-results"));
@@ -55,21 +65,20 @@ public class ModifiedVersion {
             intermediateResultsWriter.printRecord("iter", "0", "1", "2", "3", "4", "5", "6", "drt_mode_share");
 
             // prepare initial population
-            List<Main.Person> population = generateInitialPlans(populationSize);
+            List<Person> population = generateInitialPlans(populationSize);
 
-            // generate different preference
-            Map<Main.Person, Double> preferenceMap = new HashMap<>();
-            for (Main.Person person : population) {
-                preferenceMap.put(person, random.nextGaussian() * preferenceStd);
-            }
+            // prepare preference for DRT for each person
+            // via normal distribution (std = 0 means no variation)
+            prepareDrtPreferenceFromNormalDistribution(random, preferenceStd, population);
+//            prepareDrtPreferenceFromFile(preferenceDataSource, population);
 
             // run "simulation"
             double drtModeShare = 0;
             for (int iteration = 0; iteration < maxIterations; iteration++) {
-                for (Main.Person person : population) {
+                for (Person person : population) {
                     // remove the worst plan if there are more plans than memory size
                     while (person.plans.size() > memorySize) {
-                        final Main.Plan tmp = getWorstPlan(person);
+                        final Plan tmp = getWorstPlan(person);
                         person.plans.remove(tmp);
                     }
 
@@ -83,10 +92,10 @@ public class ModifiedVersion {
                 // if the drt plan is the selected plan,
                 // then we "simulate" it and generate a new score
                 // (mean = 0, std = sigma)
-                for (Main.Person person : population) {
-                    Main.Plan selectedPlan = person.selectedPlan;
-                    if (selectedPlan.type.equals(Main.Plan.Type.drt)) {
-                        selectedPlan.score = random.nextGaussian() * sigma + delta + preferenceMap.get(person);
+                for (Person person : population) {
+                    Plan selectedPlan = person.selectedPlan;
+                    if (selectedPlan.type.equals(Plan.Type.drt)) {
+                        selectedPlan.score = random.nextGaussian() * sigma + delta + person.preferenceForDrt;
                     } else {
                         selectedPlan.score = 0;
                     }
@@ -95,31 +104,31 @@ public class ModifiedVersion {
                 // analysis for mode choice and score
                 double numExecutedDrtPlans = 0;
                 double sumExecutedScores = 0.;
-                for (Main.Person person : population) {
-                    Main.Plan selectedPlan = person.selectedPlan;
+                for (Person person : population) {
+                    Plan selectedPlan = person.selectedPlan;
                     sumExecutedScores += selectedPlan.score;
-                    if (selectedPlan.type.equals(Main.Plan.Type.drt)) {
+                    if (selectedPlan.type.equals(Plan.Type.drt)) {
                         numExecutedDrtPlans++;
                     }
                 }
 
                 // re-planning
-                for (Main.Person person : population) {
+                for (Person person : population) {
                     if (iteration < maxIterations * proportionToSwitchOffInnovation) {
                         // perform innovation
                         double randomNumber = random.nextDouble();
                         if (randomNumber < modeChoice) {
                             // innovate by performing mode choice
                             // generate a new plan with random mode
-                            Main.Plan newPlan = new Main.Plan();
-                            int idx = random.nextInt(Main.Plan.Type.values().length);
-                            newPlan.type = Main.Plan.Type.values()[idx];
+                            Plan newPlan = new Plan();
+                            int idx = random.nextInt(Plan.Type.values().length);
+                            newPlan.type = Plan.Type.values()[idx];
                             newPlan.score = Double.MAX_VALUE;
                             person.plans.add(newPlan);
                             person.selectedPlan = newPlan;
                         } else if (randomNumber < modeChoice + duplicate) {
                             // generate a plan via duplication
-                            Main.Plan newPlan = new Main.Plan();
+                            Plan newPlan = new Plan();
                             newPlan.type = person.selectedPlan.type;
                             newPlan.score = Double.MAX_VALUE;
                             person.plans.add(newPlan);
@@ -145,10 +154,10 @@ public class ModifiedVersion {
                 double drt4 = 0;
                 double drt5 = 0;
                 double drt6 = 0;
-                for (Main.Person person : population) {
+                for (Person person : population) {
                     int numDrtPlansInMemory = 0;
-                    for (Main.Plan planInMemory : person.plans) {
-                        if (planInMemory.type == Main.Plan.Type.drt) {
+                    for (Plan planInMemory : person.plans) {
+                        if (planInMemory.type == Plan.Type.drt) {
                             numDrtPlansInMemory++;
                             nDrtPlans++;
                         } else {
@@ -181,7 +190,7 @@ public class ModifiedVersion {
                 }
 
                 // print out statistics
-                if (printResults){
+                if (printResults) {
                     if (iteration == maxIterations * proportionToSwitchOffInnovation) {
                         System.out.println("-------------");
                     }
@@ -230,21 +239,50 @@ public class ModifiedVersion {
         mainStatsWriter.close();
     }
 
-    private static List<Main.Person> generateInitialPlans(int populationSize) {
+    private static List<Person> generateInitialPlans(int populationSize) {
         // create initial population (all "other" mode)
-        List<Main.Person> persons = new ArrayList<>();
+        List<Person> persons = new ArrayList<>();
         for (int i = 0; i < populationSize; i++) {
-            Main.Person person = new Main.Person();
+            Person person = new Person();
 
             // generate one "other" plan and score it to 0
-            final Main.Plan plan = new Main.Plan();
+            final Plan plan = new Plan();
             plan.score = 0;
-            plan.type = Main.Plan.Type.other;
+            plan.type = Plan.Type.other;
             person.plans.add(plan);
             persons.add(person);
             person.selectedPlan = plan;
         }
         return persons;
+    }
+
+    private static void prepareDrtPreferenceFromNormalDistribution(Random rnd, double std, List<Person> population) {
+        for (Person person : population) {
+            person.preferenceForDrt = rnd.nextGaussian() * std;
+        }
+    }
+
+    private static void prepareDrtPreferenceFromFile(String fileName, List<Person> population) throws IOException {
+        List<Double> preferenceValues = new ArrayList<>();
+        try (CSVParser parser = new CSVParser(Files.newBufferedReader(Path.of(fileName)),
+                CSVFormat.DEFAULT.withDelimiter(';').withFirstRecordAsHeader())) {
+            for (CSVRecord record : parser) {
+                double scoreDifference = Double.parseDouble(record.get(0));
+                if (Double.isNaN(scoreDifference)) {
+                    scoreDifference = 0.;
+                }
+                preferenceValues.add(scoreDifference);
+            }
+        }
+        double avg = preferenceValues.stream().mapToDouble(v -> v).average().getAsDouble();
+        preferenceValues = preferenceValues.stream().map(v -> v - avg).collect(Collectors.toList());
+        if (preferenceValues.size() != population.size()) {
+            System.err.println("Not enough data for all persons. The extra persons in population will have a " +
+                    "default preference of 0");
+        }
+        for (int i = 0; i < preferenceValues.size(); i++) {
+            population.get(i).preferenceForDrt = preferenceValues.get(i);
+        }
     }
 
 }
