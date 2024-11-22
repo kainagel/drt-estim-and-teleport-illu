@@ -27,18 +27,18 @@ public class RunSimulation {
         // mode choice probability
         double modeChoice = 0.1;
         // duplication of plans (due to time mutation and reroute)
-        double duplicate = 0.2;
+        double duplicate = 0;
 
         // preference std (= 0 if everyone is the same)
         double preferenceStd = 0;
 //        String preferenceDataSource = "/Users/luchengqi/Desktop/deltas.tsv";
 
         // uncertainty level of DRT plans
-        double sigma = 0;
+        double sigma = 0.0;
 
         // output folder name
 //        String runSetup = "base";
-        String runSetup = "with-duplication";
+        String runSetup = "only-mc";
 
         // advantage of mean score drt plan
 //        double[] deltas = new double[]{-0.0001};
@@ -75,19 +75,6 @@ public class RunSimulation {
             // run "simulation"
             double drtModeShare = 0;
             for (int iteration = 0; iteration < maxIterations; iteration++) {
-                for (Person person : population) {
-                    // remove the worst plan if there are more plans than memory size
-                    while (person.plans.size() > memorySize) {
-                        final Plan tmp = getWorstPlan(person);
-                        person.plans.remove(tmp);
-                    }
-
-                    // if selected plan was the worst one and get removed, then randomly select a new plan
-                    if (!person.plans.contains(person.selectedPlan)) {
-                        person.selectRandomPlan(random);
-                    }
-                }
-
                 // simulation
                 // if the drt plan is the selected plan,
                 // then we "simulate" it and generate a new score
@@ -109,37 +96,6 @@ public class RunSimulation {
                     sumExecutedScores += selectedPlan.score;
                     if (selectedPlan.type.equals(Plan.Type.drt)) {
                         numExecutedDrtPlans++;
-                    }
-                }
-
-                // re-planning
-                for (Person person : population) {
-                    if (iteration < maxIterations * proportionToSwitchOffInnovation) {
-                        // perform innovation
-                        double randomNumber = random.nextDouble();
-                        if (randomNumber < modeChoice) {
-                            // innovate by performing mode choice
-                            // generate a new plan with random mode
-                            Plan newPlan = new Plan();
-                            int idx = random.nextInt(Plan.Type.values().length);
-                            newPlan.type = Plan.Type.values()[idx];
-                            newPlan.score = Double.MAX_VALUE;
-                            person.plans.add(newPlan);
-                            person.selectedPlan = newPlan;
-                        } else if (randomNumber < modeChoice + duplicate) {
-                            // generate a plan via duplication
-                            Plan newPlan = new Plan();
-                            newPlan.type = person.selectedPlan.type;
-                            newPlan.score = Double.MAX_VALUE;
-                            person.plans.add(newPlan);
-                            person.selectedPlan = newPlan;
-                        } else {
-                            // change exp beta
-                            person.changeExpBeta(random);
-                        }
-                    } else {
-                        // change exp beta
-                        person.changeExpBeta(random);
                     }
                 }
 
@@ -213,7 +169,6 @@ public class RunSimulation {
 
                 // keep updating until last iteration
                 drtModeShare = numExecutedDrtPlans / population.size();
-
                 intermediateResultsWriter.printRecord(
                         Integer.toString(iteration),
                         Double.toString(drt0 / populationSize),
@@ -225,6 +180,52 @@ public class RunSimulation {
                         Double.toString(drt6 / populationSize),
                         Double.toString(drtModeShare)
                 );
+
+                // re-planning
+                // check if agent has more plans than memory size
+                for (Person person : population) {
+                    // remove the worst plan if there are more plans than memory size
+                    while (person.plans.size() > memorySize) {
+                        final Plan tmp = getWorstPlan(person);
+                        person.plans.remove(tmp);
+                    }
+
+                    // if selected plan was the worst one and get removed, then randomly select a new plan
+                    if (!person.plans.contains(person.selectedPlan)) {
+                        person.selectRandomPlan(random);
+                    }
+                }
+
+                // select a strategy
+                for (Person person : population) {
+                    if (iteration < maxIterations * proportionToSwitchOffInnovation) {
+                        // perform innovation
+                        double randomNumber = random.nextDouble();
+                        if (randomNumber < modeChoice) {
+                            // innovate by performing mode choice
+                            // generate a new plan with random mode
+                            Plan newPlan = new Plan();
+                            int idx = random.nextInt(Plan.Type.values().length);
+                            newPlan.type = Plan.Type.values()[idx];
+                            newPlan.score = Double.MAX_VALUE;
+                            person.plans.add(newPlan);
+                            person.selectedPlan = newPlan;
+                        } else if (randomNumber < modeChoice + duplicate) {
+                            // generate a plan via duplication
+                            Plan newPlan = new Plan();
+                            newPlan.type = person.selectedPlan.type;
+                            newPlan.score = Double.MAX_VALUE;
+                            person.plans.add(newPlan);
+                            person.selectedPlan = newPlan;
+                        } else {
+                            // change exp beta
+                            person.changeExpBeta(random);
+                        }
+                    } else {
+                        // change exp beta
+                        person.changeExpBeta(random);
+                    }
+                }
             }
             intermediateResultsWriter.close();
 
