@@ -22,7 +22,7 @@ public class RunSimulation {
         int populationSize = 10000;
         int maxIterations = 500;
         double proportionToSwitchOffInnovation = 0.8;
-        int memorySize = 5;
+        int memorySize = 1;
 
         // mode choice probability
         double modeChoice = 0.1;
@@ -34,24 +34,24 @@ public class RunSimulation {
 //        String preferenceDataSource = "/Users/luchengqi/Desktop/deltas.tsv";
 
         // uncertainty level of DRT plans
-        double sigma = 0.0;
+        double sigma = 0;
 
         // output folder name
 //        String runSetup = "base";
-        String runSetup = "only-mc";
+        String runSetup = "only-mc-memory-size-1";
 
         // advantage of mean score drt plan
 //        double[] deltas = new double[]{-0.0001};
         double[] deltas = new double[]{-10, -5, -2, -1, -0.5, -0.2, -0.1, -0.0001, 0, 0.0001, 0.1, 0.2, 0.5, 1, 2, 5, 10};
 
-        boolean printResults = false;
-
-
-        // write down a tsv file for output
+        // output folder
         String outputFolder = "/Users/luchengqi/Documents/TU-Berlin/Projects/DRT-estimate-and-teleport/mode-choice-study/" + runSetup +
                 "/sigma_" + sigma;
-        if (!Files.exists(Path.of(outputFolder))) {
-            Files.createDirectories(Path.of(outputFolder));
+
+        // Start running simulation
+        Path outputFolderPath = Path.of(outputFolder);
+        if (!Files.exists(outputFolderPath)) {
+            Files.createDirectories(outputFolderPath);
             Files.createDirectories(Path.of(outputFolder + "/intermediate-results"));
         }
         CSVPrinter mainStatsWriter = new CSVPrinter(new FileWriter(outputFolder + "/main-stats.tsv"), CSVFormat.TDF);
@@ -62,7 +62,7 @@ public class RunSimulation {
             // write down a tsv file for intermediate results:
             CSVPrinter intermediateResultsWriter =
                     new CSVPrinter(new FileWriter(outputFolder + "/intermediate-results/delta-" + delta + ".tsv"), CSVFormat.TDF);
-            intermediateResultsWriter.printRecord("iter", "0", "1", "2", "3", "4", "5", "6", "drt_mode_share");
+            intermediateResultsWriter.printRecord("iter", "0", "1", "2", "3", "4", "5", "drt_mode_share");
 
             // prepare initial population
             List<Person> population = generateInitialPlans(populationSize);
@@ -76,12 +76,11 @@ public class RunSimulation {
             double drtModeShare = 0;
             for (int iteration = 0; iteration < maxIterations; iteration++) {
                 // simulation
-                // if the drt plan is the selected plan,
-                // then we "simulate" it and generate a new score
-                // (mean = 0, std = sigma)
                 for (Person person : population) {
                     Plan selectedPlan = person.selectedPlan;
                     if (selectedPlan.type.equals(Plan.Type.drt)) {
+                        // if drt plan is the selected plan, then we "simulate" it and generate a new score
+                        // drt plan score: mean = preference + delta, std = sigma
                         selectedPlan.score = random.nextGaussian() * sigma + delta + person.preferenceForDrt;
                     } else {
                         selectedPlan.score = 0;
@@ -90,99 +89,17 @@ public class RunSimulation {
 
                 // analysis for mode choice and score
                 double numExecutedDrtPlans = 0;
-                double sumExecutedScores = 0.;
                 for (Person person : population) {
                     Plan selectedPlan = person.selectedPlan;
-                    sumExecutedScores += selectedPlan.score;
                     if (selectedPlan.type.equals(Plan.Type.drt)) {
                         numExecutedDrtPlans++;
                     }
                 }
 
-                // statistics on num of DRT plans in memory
-                double nDrtPlans = 0;
-                double nOtherPlans = 0;
-
-                double drt0 = 0;
-                double drt1 = 0;
-                double drt2 = 0;
-                double drt3 = 0;
-                double drt4 = 0;
-                double drt5 = 0;
-                double drt6 = 0;
-                for (Person person : population) {
-                    int numDrtPlansInMemory = 0;
-                    for (Plan planInMemory : person.plans) {
-                        if (planInMemory.type == Plan.Type.drt) {
-                            numDrtPlansInMemory++;
-                            nDrtPlans++;
-                        } else {
-                            nOtherPlans++;
-                        }
-                    }
-                    switch (numDrtPlansInMemory) {
-                        case 0:
-                            drt0++;
-                            break;
-                        case 1:
-                            drt1++;
-                            break;
-                        case 2:
-                            drt2++;
-                            break;
-                        case 3:
-                            drt3++;
-                            break;
-                        case 4:
-                            drt4++;
-                            break;
-                        case 5:
-                            drt5++;
-                            break;
-                        case 6:
-                            drt6++;
-                            break;
-                    }
-                }
-
-                // print out statistics
-                if (printResults) {
-                    if (iteration == maxIterations * proportionToSwitchOffInnovation) {
-                        System.out.println("-------------");
-                    }
-                    System.out.println("iteration = " + iteration
-                            + "; avgExecutedScore = " + sumExecutedScores / population.size()
-                            + "; drtModeShare = " + numExecutedDrtPlans / population.size()
-                            + "; nTotalDrtPlans = " + nDrtPlans
-                            + "; nTotalOtherPlans = " + nOtherPlans
-                    );
-                    System.out.println("Distribution of num of DRT plans in memory: "
-                            + "; 0: " + drt0 / populationSize
-                            + "; 1: " + drt1 / populationSize
-                            + "; 2: " + drt2 / populationSize
-                            + "; 3: " + drt3 / populationSize
-                            + "; 4: " + drt4 / populationSize
-                            + "; 5: " + drt5 / populationSize
-                            + "; 6: " + drt6 / populationSize);
-                }
-
-
                 // keep updating until last iteration
                 drtModeShare = numExecutedDrtPlans / population.size();
-                intermediateResultsWriter.printRecord(
-                        Integer.toString(iteration),
-                        Double.toString(drt0 / populationSize),
-                        Double.toString(drt1 / populationSize),
-                        Double.toString(drt2 / populationSize),
-                        Double.toString(drt3 / populationSize),
-                        Double.toString(drt4 / populationSize),
-                        Double.toString(drt5 / populationSize),
-                        Double.toString(drt6 / populationSize),
-                        Double.toString(drtModeShare)
-                );
 
-                // re-planning
-                // check if agent has more plans than memory size
+                // plan removal
                 for (Person person : population) {
                     // remove the worst plan if there are more plans than memory size
                     while (person.plans.size() > memorySize) {
@@ -196,6 +113,12 @@ public class RunSimulation {
                     }
                 }
 
+                // intermediate result analysis
+                // Note: in MATSim, the plan removal is performed after the intermediate plans are written!!!
+                // For analysis purpose, we analyze the number of DRT plans in memory after the plan removal.
+                intermediateAnalysis(intermediateResultsWriter, population, iteration);
+
+                // re-planning
                 // select a strategy
                 for (Person person : population) {
                     if (iteration < maxIterations * proportionToSwitchOffInnovation) {
@@ -203,10 +126,15 @@ public class RunSimulation {
                         double randomNumber = random.nextDouble();
                         if (randomNumber < modeChoice) {
                             // innovate by performing mode choice
-                            // generate a new plan with random mode
+                            // choose a random plan and change mode
+                            // when possible, the new mode is always different!
                             Plan newPlan = new Plan();
-                            int idx = random.nextInt(Plan.Type.values().length);
-                            newPlan.type = Plan.Type.values()[idx];
+                            // get a random plan (here, each plan only has one leg, we just extract the mode)
+                            Plan.Type originalType = person.plans.get(random.nextInt(person.plans.size())).type;
+                            // change to a different mode
+                            List<Plan.Type> possibleTypes = Arrays.stream(Plan.Type.values()).filter(type -> type != originalType).toList();
+                            int idx = random.nextInt(possibleTypes.size());
+                            newPlan.type = possibleTypes.get(idx);
                             newPlan.score = Double.MAX_VALUE;
                             person.plans.add(newPlan);
                             person.selectedPlan = newPlan;
@@ -219,11 +147,13 @@ public class RunSimulation {
                             person.selectedPlan = newPlan;
                         } else {
                             // change exp beta
-                            person.changeExpBeta(random);
+//                            person.changeExpBeta(random);
+                            person.selectRandomAndBest((double) 1 / 9, random);
                         }
                     } else {
                         // change exp beta
-                        person.changeExpBeta(random);
+//                        person.changeExpBeta(random);
+                        person.selectRandomAndBest((double) 1 / 9, random);
                     }
                 }
             }
@@ -286,4 +216,57 @@ public class RunSimulation {
         }
     }
 
+    private static void intermediateAnalysis(CSVPrinter intermediateResultsWriter,
+                                             List<Person> population, int iteration) throws IOException {
+        int populationSize = population.size();
+        double nDrtPlans = 0;
+
+        double drt0 = 0;
+        double drt1 = 0;
+        double drt2 = 0;
+        double drt3 = 0;
+        double drt4 = 0;
+        double drt5 = 0;
+
+        for (Person person : population) {
+            int numDrtPlansInMemory = 0;
+            for (Plan planInMemory : person.plans) {
+                if (planInMemory.type == Plan.Type.drt) {
+                    numDrtPlansInMemory++;
+                    nDrtPlans++;
+                }
+            }
+            switch (numDrtPlansInMemory) {
+                case 0:
+                    drt0++;
+                    break;
+                case 1:
+                    drt1++;
+                    break;
+                case 2:
+                    drt2++;
+                    break;
+                case 3:
+                    drt3++;
+                    break;
+                case 4:
+                    drt4++;
+                    break;
+                case 5:
+                    drt5++;
+                    break;
+            }
+        }
+
+        intermediateResultsWriter.printRecord(
+                Integer.toString(iteration),
+                Double.toString(drt0 / populationSize),
+                Double.toString(drt1 / populationSize),
+                Double.toString(drt2 / populationSize),
+                Double.toString(drt3 / populationSize),
+                Double.toString(drt4 / populationSize),
+                Double.toString(drt5 / populationSize),
+                Double.toString(nDrtPlans / populationSize)
+        );
+    }
 }

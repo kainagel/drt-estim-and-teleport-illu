@@ -45,6 +45,17 @@ class Person {
         selectedPlan = getBestPlan(this);
     }
 
+    void selectRandomAndBest(double proportionRnd, Random rnd) {
+        if (plans.isEmpty()) {
+            throw new RuntimeException("No plans in memory. Please create at least one plan");
+        }
+        if (rnd.nextDouble() < proportionRnd) {
+            selectRandomPlan(rnd);
+        } else {
+            selectedPlan = getBestPlan(this);
+        }
+    }
+
     static Plan getWorstPlan(Person person) {
         double minScore = Double.POSITIVE_INFINITY;
         Plan tmp = null;
