@@ -17,12 +17,13 @@ import static org.kainagel.drtEstimAndTeleportIllu.Person.getWorstPlan;
 public class RunSimulation {
 
     public static void main(String[] args) throws IOException {
+        long seed = 5;
         // some parameters
-        Random random = new Random(1);
+        Random random = new Random(seed);
         int populationSize = 10000;
         int maxIterations = 500;
         double proportionToSwitchOffInnovation = 0.8;
-        int memorySize = 1;
+        int memorySize = 5;
 
         // mode choice probability
         double modeChoice = 0.1;
@@ -34,18 +35,18 @@ public class RunSimulation {
 //        String preferenceDataSource = "/Users/luchengqi/Desktop/deltas.tsv";
 
         // uncertainty level of DRT plans
-        double sigma = 0;
+        double sigma = 1.64;
 
         // output folder name
 //        String runSetup = "base";
-        String runSetup = "only-mc-memory-size-1";
+        String runSetup = "matsim-ceb-impl-test/mc-" + modeChoice + "-seed-" + seed;
 
         // advantage of mean score drt plan
-//        double[] deltas = new double[]{-0.0001};
+//        double[] deltas = new double[]{0};
         double[] deltas = new double[]{-10, -5, -2, -1, -0.5, -0.2, -0.1, -0.0001, 0, 0.0001, 0.1, 0.2, 0.5, 1, 2, 5, 10};
 
         // output folder
-        String outputFolder = "/Users/luchengqi/Documents/TU-Berlin/Projects/DRT-estimate-and-teleport/mode-choice-study/" + runSetup +
+        String outputFolder = "/Users/luchengqi/Documents/TU-Berlin/Projects/ExpBetaStudy/" + runSetup +
                 "/sigma_" + sigma;
 
         // Start running simulation
@@ -62,7 +63,7 @@ public class RunSimulation {
             // write down a tsv file for intermediate results:
             CSVPrinter intermediateResultsWriter =
                     new CSVPrinter(new FileWriter(outputFolder + "/intermediate-results/delta-" + delta + ".tsv"), CSVFormat.TDF);
-            intermediateResultsWriter.printRecord("iter", "0", "1", "2", "3", "4", "5", "drt_mode_share");
+            intermediateResultsWriter.printRecord("iter", "0", "1", "2", "3", "4", "5", "avg_drt_plans_in_memory");
 
             // prepare initial population
             List<Person> population = generateInitialPlans(populationSize);
@@ -148,7 +149,8 @@ public class RunSimulation {
                         } else {
                             // change exp beta
 //                            person.changeExpBeta(random);
-                            person.selectRandomAndBest((double) 1 / 9, random);
+//                            person.selectRandomAndBest((double) 1 / 9, random);
+                            person.changeExpBetaMATSimImpl(random);
                         }
                     } else {
                         // change exp beta
