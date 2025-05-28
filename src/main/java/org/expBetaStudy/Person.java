@@ -15,6 +15,23 @@ public class Person {
         return person;
     }
 
+    static List<Person> createInitialPopulation(int populationSize, double initialModeBShare, Random random) {
+        List<Person> population = new ArrayList<>();
+        for (int i = 0; i < populationSize; i++) {
+            Person person = new Person();
+            Plan defaultPlan = new Plan();
+            if (random.nextDouble() < initialModeBShare) {
+                defaultPlan.mode = Mode.modeB;
+            } else {
+                defaultPlan.mode = Mode.modeA;
+            }
+            person.plans.add(defaultPlan);
+            person.selectedPlan = defaultPlan;
+            population.add(person);
+        }
+        return population;
+    }
+
     // innovative strategy: change single trip mode
     void performModeInnovation(Random random) {
         Plan newPlan = new Plan();
@@ -48,7 +65,7 @@ public class Person {
         }
     }
 
-    void changeExpBetaMATSimImpl(Random random) {
+    void changeExpBetaMATSimImpl(Random random, double gamma) {
         if (plans.isEmpty()) {
             throw new RuntimeException("No plans in memory. Please create at least one plan");
         }
@@ -61,7 +78,9 @@ public class Person {
 
         // The MATSim implementation: with 0.01 as hard-coded value
         double weight = Math.exp(0.5 * beta * (otherPlan.score - selectedPlan.score));
-        if (random.nextDouble() < 0.01 * weight) {
+//        double weight =  Math.min(Math.exp(0.5 * beta * (otherPlan.score - selectedPlan.score)), 1);
+//      default value for gamma = 0.01 (in the original implementation)
+        if (random.nextDouble() < gamma * weight) {
             selectedPlan = otherPlan;
         }
     }
@@ -91,7 +110,7 @@ public class Person {
     }
 
     Plan getWorstPlan() {
-        if (this.plans.isEmpty()){
+        if (this.plans.isEmpty()) {
             throw new RuntimeException("No plans in memory!");
         }
         double worstScore = Double.MAX_VALUE;
