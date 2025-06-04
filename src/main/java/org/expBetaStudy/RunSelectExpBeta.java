@@ -22,11 +22,8 @@ public class RunSelectExpBeta {
         // MSA
         boolean useMSA = true;
 
-        // gamma for change exp beta
-        double gamma = 0.01;
-
         // level of uncertainty on modeB
-        double sigma = 5;
+        double sigma = 3;
         // difference between the base score of the two modes
 //        double[] deltas = new double[]{-10, -5, -2, -1, -0.5, -0.2, -0.1, -0.0001, 0, 0.0001, 0.1, 0.2, 0.5, 1, 2, 5, 10};
         double[] deltas = new double[]{0};
@@ -36,7 +33,7 @@ public class RunSelectExpBeta {
         double modeInnovation = 0.1;
 
         // output directory
-        String outputDirectoryRoot = "/Users/luchengqi/Desktop/ChangeExpBeta-test/illu-output/msa-analysis/SelectExpBeta-automated";
+        String outputDirectoryRoot = "/Users/luchengqi/Desktop/ChangeExpBeta-test/illu-output/msa-analysis/SelectExpBeta-automated-1";
 
         // Main part from here
         String outputDirectory = outputDirectoryRoot + "/SelectExpBeta-sigma_" + sigma;
@@ -65,6 +62,8 @@ public class RunSelectExpBeta {
             // initialization
             Random random = new Random(seed);
             List<Person> persons = Person.createInitialPopulation(numPersons, initialModeBShare, random);
+            // initialize memory observer
+            AgentsMemoryObserver agentsMemoryObserver = new AgentsMemoryObserver(singleRunFolder, memorySize, persons);
 
             // simulation
             double modeAShare = 0;
@@ -111,6 +110,9 @@ public class RunSelectExpBeta {
                     }
                 }
 
+                // analyze mode B memory
+                agentsMemoryObserver.analyze(persons, memorySize, iteration);
+
                 // re-planning
                 if (iteration < numIterations) {
                     for (Person person : persons) {
@@ -124,9 +126,8 @@ public class RunSelectExpBeta {
             }
             intermediateResultsWriter.close();
 
-            // analyze the number of mode B plans in the memory
-            AgentsMemoryObserver agentsMemoryObserver = new AgentsMemoryObserver(singleRunFolder);
-            agentsMemoryObserver.analyze(persons, memorySize);
+            // print the number of mode B plans in the memory
+            agentsMemoryObserver.printResults();
 
             // overall analysis
             mainStatsWriter.printRecord(

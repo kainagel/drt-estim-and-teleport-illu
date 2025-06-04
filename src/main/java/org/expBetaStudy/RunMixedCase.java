@@ -32,7 +32,7 @@ public class RunMixedCase {
 
         // gamma for change exp beta
         // double[] gammas = new double[]{0.01}
-        double[] gammas = new double[]{0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
+        double[] gammas = new double[]{0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
 
         // level of uncertainty on modeB
         double sigma = 3;
@@ -75,6 +75,8 @@ public class RunMixedCase {
                 // initialization
                 Random random = new Random(seed);
                 List<Person> persons = Person.createInitialPopulation(numPersons, initialModeBShare, random);
+                // initialize memory observer
+                AgentsMemoryObserver agentsMemoryObserver = new AgentsMemoryObserver(singleRunFolder, memorySize, persons);
 
                 // simulation
                 double modeAShare = 0;
@@ -121,6 +123,9 @@ public class RunMixedCase {
                         }
                     }
 
+                    // analyze memory for mode B
+                    agentsMemoryObserver.analyze(persons, memorySize, iteration);
+
                     // re-planning
                     // during the innovation phase, use change Exp Beta (or mode innovation)
                     if (iteration < numIterations) {
@@ -139,9 +144,7 @@ public class RunMixedCase {
                     }
                 }
                 intermediateResultsWriter.close();
-
-                // analyze the number of mode B plans in the memory
-                new AgentsMemoryObserver(singleRunFolder).analyze(persons, memorySize);
+                agentsMemoryObserver.printResults();
 
                 // overall analysis
                 mainStatsWriter.printRecord(

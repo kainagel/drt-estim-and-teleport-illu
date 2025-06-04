@@ -24,10 +24,10 @@ public class RunChangeExpBeta {
 
         // gamma for change exp beta
         // double[] gammas = new double[]{0.01}
-        double[] gammas = new double[]{0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
+        double[] gammas = new double[]{0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
 
         // level of uncertainty on modeB
-        double sigma = 0.3;
+        double sigma = 3;
         // difference between the base score of the two modes
         double[] deltas = new double[]{0};
         //        double[] deltas = new double[]{-10, -5, -2, -1, -0.5, -0.2, -0.1, -0.0001, 0, 0.0001, 0.1, 0.2, 0.5, 1, 2, 5, 10};
@@ -67,6 +67,8 @@ public class RunChangeExpBeta {
                 // initialization
                 Random random = new Random(seed);
                 List<Person> persons = Person.createInitialPopulation(numPersons, initialModeBShare, random);
+                // initialize memory observer
+                AgentsMemoryObserver agentsMemoryObserver = new AgentsMemoryObserver(singleRunFolder, memorySize, persons);
 
                 // simulation
                 double modeAShare = 0;
@@ -113,6 +115,9 @@ public class RunChangeExpBeta {
                         }
                     }
 
+                    // analyze the number of mode B plans in the memory
+                    agentsMemoryObserver.analyze(persons, memorySize, iteration);
+
                     // re-planning
                     if (iteration < numIterations) {
                         for (Person person : persons) {
@@ -125,11 +130,9 @@ public class RunChangeExpBeta {
                     }
                 }
                 intermediateResultsWriter.close();
+                agentsMemoryObserver.printResults();
 
-                // analyze the number of mode B plans in the memory
-                new AgentsMemoryObserver(singleRunFolder).analyze(persons, memorySize);
-
-                // overall analysis
+                // write overall analysis entry
                 mainStatsWriter.printRecord(
                         Double.toString(delta),
                         Double.toString(modeAShare),
